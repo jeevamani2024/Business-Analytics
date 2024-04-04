@@ -1,0 +1,297 @@
+---
+title: "Business Analytics_Project"
+author: "Jeeva"
+date: "2023-11-16"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, comment = NULL)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+#Loading the required libraries.
+```{r}
+library(dplyr, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(knitr, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)  
+library(ggplot2, warn.conflicts = FALSE)
+library(ggcorrplot, warn.conflicts = FALSE)
+library(tidyr, warn.conflicts = FALSE)
+library(corrplot, warn.conflicts = FALSE)
+library(cowplot, warn.conflicts = FALSE)
+library(pander, warn.conflicts = FALSE)
+library(lattice, warn.conflicts = FALSE)
+library(rpart, warn.conflicts = FALSE)
+library(rpart.plot, warn.conflicts = FALSE)
+library(rattle, warn.conflicts = FALSE)
+library(logistf, warn.conflicts = FALSE)
+library(tinytex, warn.conflicts = FALSE )
+```
+
+#Importing and reading dataset.
+```{r}
+library(readr)
+library(readxl)
+Train_data <- read.csv("C:/Users/jeeva thangamani/Desktop/Rhistory/House_Prices.csv")
+Test_data <- read.csv("C:/Users/jeeva thangamani/Desktop/Rhistory/BA-Predict.csv")
+```
+
+#Displaying the first few rows of the datatset.
+```{r}
+head(Train_data)
+head(Test_data)
+```
+
+#Displaying the shape of the dataset.
+```{r}
+dim(Train_data)
+dim(Test_data)
+```
+
+#### Descriptive Analysis:-
+
+Descriptive statistics refers to the branch of statistics that involves methods for summarizing and presenting data in a meaningful and informative way, helping to uncover key characteristics and patterns within a dataset.
+
+#Understanding the structure of the dataset.
+```{r}
+str(Train_data)
+str(Test_data)
+```
+
+#Understanding the summary of the dataset.
+```{r}
+summary(Train_data)
+summary(Test_data)
+```
+
+##### Data Preparation:-
+
+Data preparation is the process of cleaning and organizing raw data to make it suitable for analysis. It involves handling missing values, removing duplicates, and transforming variables. The goal is to ensure data quality and usability for modeling and analysis tasks.
+
+#Checking if there are any missing values column wise and plotting a graph for it.
+```{r}
+Missing_Train_data = colSums(is.na(Train_data))
+Missing_Test_data = colSums(is.na(Test_data))
+print(Missing_Train_data)
+print(Missing_Test_data)
+Plot_Train_data <- barplot(Missing_Train_data, main = "Null Values", xlab = "Variables", ylab = "Count")
+Plot_Test_data <- barplot(Missing_Test_data, main = "Null Values", xlab = "Variables", ylab = "Count")
+```
+
+The dataset, both in the training and test sets, does not contain any missing values across various property features, ensuring a complete and reliable dataset for analysis and model development.
+
+#### Data Exploration:-
+
+Data Exploration refers to a set of techniques used to gain a better understanding of the data. It is a combination of both  descriptive and visualization. It helps in selecting the right tool for analyzing the data and making use of human abilities to recognize patterns in the data. Descriptive analysis has been covered so moving on data visualization.
+
+#### Data Visualization:-
+
+Data visualization is the process of presenting information graphically, utilizing charts, graphs, and visual elements to convey complex data patterns and trends in a concise and understandable manner. It involves translating large datasets into visual representations that facilitate easier interpretation and analysis.
+
+#Creating the histograms for all the numerical variables. 
+```{r}
+Hist_data <- Train_data %>%
+  gather(key = "Variable", value = "Value")
+
+ggplot(Hist_data, aes(x = Value)) +
+  geom_histogram(fill = "purple", bins = 30) +
+  facet_wrap(~ Variable, scales = 'free') +
+  theme_classic() +
+  theme(aspect.ratio = 0.5, axis.title = element_blank(), panel.grid = element_blank())
+```
+
+A histogram visually represents how a dataset is distributed by illustrating the frequency or count of values in various ranges. This graphical tool offers insights into the central tendency, spread, and skewness of the data, enabling the identification of patterns and an assessment of the overall distribution shape. For example, when examining SalePrice, a left-sided skewness can be observed which is evident from the longer tail on the left side. 
+
+#Using Pairs function to show the scatter plots for every pair or variables.
+```{r}
+pairs(Train_data)
+```
+
+Pairs visually display the scatter plots for each pair of variables in a dataset, facilitating the examination of relationships and patterns. In the context of SalePrice as the response variable, commonalities among variables like LotArea, OverallQual, YearRemodAdd, BsmtFinSF1, BedroomAbvGr, TotRmsAbvGrd, Fireplaces, GarageArea can be observed.
+
+#Correlation Analysis: Creating a correlation Heat map.
+```{r}
+cor_matrix <- cor(Train_data)
+cor_df <- reshape2::melt(cor_matrix)
+ggplot(cor_df, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "red", mid = "white", high = "skyblue", midpoint = 0, na.value = "grey5") +  
+  labs(title = "Correlation Heatmap", x = "", y = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(size = 18, face = "bold"))
+
+```
+
+The above correlation plot is a statistical measure that quantifies the degree to which the output variable changes basing on the independent variable. It indicates the direction and strength of the linear relationship between them. The correlation coefficient, typically ranging from -1 to 1, helps assess whether an increase in one variable corresponds to an increase, decrease, or no change in the response which is the SalePrice.
+
+#### Feature Selection:-                                                                                          
+
+#Compute correlation matrix.
+```{r}
+cor_matrix <- cor(Train_data)
+print(cor_matrix)
+```
+
+#Creating correlation heatmap.
+```{r}
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black",
+tl.srt = 45, tl.cex = 0.8, tl.offset = 1, 
+addCoef.col = "black", number.cex = 0.8, number.digits = 2,
+diag = FALSE, outline = TRUE)
+```
+
+#Using Step-wise Regression to determine the importance of the features. 
+```{r}
+Model <- lm(SalePrice ~ ., data = Train_data)
+Step_Model <- step(Model)
+summary(Step_Model)
+``` 
+
+Step-wise Regression is a feature selection technique that systematically adds or removes predictors from a model based on a chosen criterion, such as AIC or BIC. This model consists of a subset of predictors considered most relevant for explaining variation in the dependent variable. In our case the most relevant features are LotArea, OverallQual,  YearRemodAdd, BsmtFinSF1, BedroomAbvGr, TotRmsAbvGrd, Fireplaces, GarageArea.
+
+#Applying the linear regression model with the variables that are determined significant in the step-wise regression method. 
+```{r}
+Model_1 <- lm(SalePrice ~ LotArea + OverallQual + YearRemodAdd + BsmtFinSF1 + BedroomAbvGr +  TotRmsAbvGrd + Fireplaces + GarageArea, data = Train_data)
+summary(Model_1)
+```
+
+#Using the anova analysis and to determine the importance of the variables.
+```{r}
+anova(Model_1)
+```
+
+Interpretation:- By examining the correlation matrix, correlation heatmap, and by looking at the P-values in linear regression model and ANOVA analysis, we can determine that LotArea, OverallQual, YearRemodAdd, BsmtFinSF1, BedroomAbvGr,  TotRmsAbvGrd, Fireplaces, GarageArea are the features that have influence on the target variable.
+
+##### Predictive Analysis:-
+
+Predictive analysis involves using statistical algorithms and machine learning techniques to analyze historical data and make predictions about future outcomes. It aims to identify patterns and trends in the data to make informed forecasts, enabling better decision-making and planning. We will now implement various models such as Regression, Decision Tree, and Logistic Regression models on the House Prices dataset for Prediction.
+
+#Splitting the data into training and test set.
+```{r}
+set.seed(1)
+train.index <- sample(row.names(Train_data))
+test.index <- sample(row.names(Test_data)) 
+```
+
+#### Regression Model:-                                                                                           
+
+Following the execution of the linear regression model with the chosen features namely LotArea, OverallQual, YearRemodAdd, BsmtFinSF1, BedroomAbvGr, TotRmsAbvGrd, Fireplaces, GarageArea and proceed to re-run the linear model.
+
+#Predicting the price of a house based on selected predictors.
+```{r}
+Model_2 <- lm(SalePrice ~ LotArea + OverallQual + YearRemodAdd + BsmtFinSF1 + BedroomAbvGr +  TotRmsAbvGrd + Fireplaces + GarageArea, data = Train_data)
+summary(Model_2)
+Predicted_value_1 <- predict(Model_2, data.frame(Test_data))
+Predicted_value_1
+```
+
+This code builds a linear regression model (Model_2) to predict SalePrice based on various features that influence the output variable using the training dataset (Train_data). The summary function provides detailed information about the model's coefficients and statistical significance. The code then generates predicted SalePrice values for the test dataset (Test_data) using the model and stores them in Predicted_value_1. 
+
+#Calculating the RMSE Value. 
+```{r}
+RMSE_Prediction_1 <- RMSE(Predicted_value_1, Test_data$SalePrice)
+RMSE_Prediction_1
+```
+
+#Testing the Assumptions of the Linear Regression Model.
+```{r}
+plot(Model_2$fitted.values, Model_2$residuals, xlab = "Fitted Values", ylab = "Residuals", main= "Scatter Plot")
+qqnorm(Model_2$residuals, col= "Black")
+qqline(Model_2$residuals)
+```
+
+The scatter plot reveals that the relationship between the fitted values and residuals is not entirely random; there appears to be some pattern, indicating potential issues with the model. Additionally, the quantile-quantile plot shows deviations from the expected straight line, suggesting that the residuals might not follow a normal distribution. These observations indicate that the linear regression model (Model_2) may not fully meet the assumptions. As a result, we would further explore another model called decision tree for the same dataset.
+
+#### Decision Tree Model:-                                                                                        
+
+#Running the decision tree model to perform feature selection by understanding the variable importance.
+```{r}
+Model_3 <- rpart(SalePrice ~., data = Train_data, method = 'anova', control = rpart.control(minsplit = 60))
+summary(Model_3)
+```
+
+Following the execution of the decision tree model with all the features, it is observed that the features OverallQual, GarageArea, YearBuilt, BsmtFinSF1, and YearRemodAdd hold the maximum importance. Hence, we opt to choose them and re-run the linear model.
+
+#Predicting the price of a house based on selected predictors.
+```{r}
+Model_4 <- rpart(SalePrice ~ OverallQual + GarageArea + YearBuilt + BsmtFinSF1 + YearRemodAdd , data = Train_data, method = 'anova', control = rpart.control(minsplit = 60))
+summary(Model_4)
+fancyRpartPlot(Model_4)
+Predicted_value_2 <- predict(Model_4, data.frame(Test_data))
+Predicted_value_2
+```
+
+The code constructs a decision tree model, to predict SalePrice using the Train_data dataset with the selected features. The model's summary and a visual representation of the decision tree are generated. Finally, the Predicted_value_2 variable holds the predicted SalePrice values for the Test_data dataset. 
+
+#Calculating the value RMSE and Adjusted R-squared value value.
+```{r}
+Observations <- nrow(Train_data)  # number of observations
+Predictors <- length(coefficients(Model_4)) - 1  # number of predictors (excluding intercept)
+
+#Calculating R-squared Value
+SSE <- sum((Predicted_value_2 - Train_data$SalePrice)^2)
+SST <- sum((mean(Train_data$SalePrice) - Train_data$SalePrice)^2)
+R2 <- 1 - (SSE / SST)
+round(R2,3)
+
+# Calculating Adjusted R-squared Value
+Adjusted_R2 <- 1 - (SSE / (Observations - Predictors - 1)) / (SST / (Observations - 1))
+round(Adjusted_R2, 3)
+
+#Calculating RMSE Value
+RMSE_Prediction_2 <- RMSE(Predicted_value_2, Test_data$SalePrice)
+RMSE_Prediction_2
+```
+
+#Demonstrating the Comparison between the different criteria.
+```{r}
+R_Squared_Value <- c(0.8037, -0.633)
+Adjusted_R_Squared_Value <- c(0.802,-0.631)
+RMSE_Value <- c(29381.9, 37429.64)
+
+Model <- c("Linear Regression", "Decision Tree")
+Model_comparision <- data.frame(Model,R_Squared_Value,Adjusted_R_Squared_Value,RMSE_Value)
+pandoc.table(Model_comparision,style="grid", split.tables = Inf)
+```
+
+Interpretation: To determine the most appropriate model for the provided dataset, we assessed two specific models such as linear regression and decision tree. Our evaluation relied on key metrics like R-squared value, adjusted R-squared value, and RMSE value. A preferred model should exhibit a high adjusted R-squared value and a low RMSE value. Our analysis revealed that the decision tree model had a completely negative adjusted R-squared value and a higher RMSE compared to the linear regression model. Consequently, we can conclude that the decision tree model is not suitable for this dataset. Although the linear regression model did not fully satisfy all the assumptions, it demonstrated comparatively better performance than the decision tree model.
+
+#### Logistic Regression Model:-                                                                                  
+                                                                                                                  
+#Converting the OverallQual variable into factor and dividing it into two levels of classes "0" and "1".
+```{r}
+Train_data$OverallQual <- as.factor(ifelse(Train_data$OverallQual >= 7, '1', '0'))
+levels(Train_data$OverallQual)
+Test_data$OverallQual <- as.factor(ifelse(Test_data$OverallQual >= 7, '1', '0'))
+levels(Test_data$OverallQual)
+```
+
+#Running the logistic regression model to perform feature selection.
+```{r}
+Model_5 <- glm(OverallQual ~. , data = Train_data, family = 'binomial')
+summary(Model_5)
+```
+
+By analyzing the logistic regression model we can determine that LotArea, BsmtFinSF1, BedroomAbvGr and SalePrice are the features that have influence on the OverallQual Variable.
+
+#Calculating the confusion matrix of the test set with that of the training set.
+```{r}
+Model_6 <- glm(OverallQual ~ LotArea + BsmtFinSF1 + BedroomAbvGr + SalePrice, data = Train_data, family = 'binomial')
+summary(Model_6)
+Predicted_probs <- predict(Model_6, newdata = Test_data, type = "response")
+cutoff <- 0.5
+class_prediction <- ifelse(Predicted_probs > cutoff, "1", "0")
+class_prediction <- as.factor(class_prediction)
+Test_data$OverallQual <- as.factor(Test_data$OverallQual)
+conf_matrix <- confusionMatrix(class_prediction, Test_data$OverallQual, positive = "1")
+print(conf_matrix)
+```
+
+Interpretation:- The logistic regression model, applied to the categorical variable OverallQual, demonstrates its effectiveness, as evident from the confusion matrix. The accuracy of 84.44%, specificity of 89.09%, and high precision of 81.82% showcase the model's ability to distinguish between classes. Moreover, the model generalizes well, as indicated by its strong performance on the test set. Logistic regression proves to be a robust choice for handling categorical variables and making reliable predictions.
+

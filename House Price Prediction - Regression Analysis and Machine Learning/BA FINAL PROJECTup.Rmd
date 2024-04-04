@@ -1,0 +1,226 @@
+---
+title: "BA final project"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+date: "2023-11-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***SUMMARY***
+
+**DEA PART**
+
+DECISION TREE
+```{r}
+library(ggplot2)
+library(readr)
+library(dplyr)
+library(corrplot)
+library(caret)
+```
+
+```{r}
+#Load the dataset
+Train_Data <- read.csv("C:/Users/jeeva thangamani/Desktop/Rhistory/House_Prices.csv")
+```
+
+
+
+**DATA EXPLORATION**
+
+DESCRIPTIVE ANALYSIS
+```{r}
+#Demonstrate the first 6 rows of the dataset 
+head(Train_Data)
+```
+```{r}
+#Checking the NULL values 
+Missing_value <- colMeans(is.na(Train_Data))
+print(Missing_value)
+```
+
+```{r}
+#Show the structure of whole features
+str(Train_Data)
+```
+
+```{r}
+#Normalize the dataset
+Normalized_Train_data <- preProcess(Train_Data,method="range")
+Predict_normalization <- predict(Normalized_Train_data,Train_Data)
+```
+
+```{r}
+#Use the Summary function to describe the feature's distribution
+summary(Train_Data)
+```
+
+VISUALIZATION 
+
+```{r}
+#Visualize the relationship between the number of bedroom and the saleprices of houses 
+average_prices1 <- Train_Data %>% group_by(BedroomAbvGr) %>% summarize(avg_SalePrice1 = mean(SalePrice))
+
+ggplot(average_prices1, aes(x = BedroomAbvGr, y = avg_SalePrice1)) +
+  geom_bar(stat = "identity",fill = "lightblue") +
+  labs(title = "The average houseprice by the Quantity of bedroom",
+       x = "The number of Bedrooms",
+       y = "Average Sale Price") + 
+    theme_minimal() + scale_x_continuous(labels = scales::comma)
+```
+
+```{r}
+#Visualize the Distribution of Salesprice based on the Year built the house
+ggplot(data = Train_Data, aes(x = YearBuilt, y = SalePrice)) +
+  geom_point(shape = 21, size = 4, color = "orange") +
+  labs(title = "Scatter Plot of SalePrice",
+       x = "YearBuilt",
+       y = "SalePrice")
+```
+
+```{r}
+#Graph 3 shows which Garage size has the most effect on the avarage saleprice
+average_prices2 <- Train_Data %>% group_by(GarageArea) %>% summarize(avg_SalePrice2 = mean(SalePrice))
+
+ggplot(average_prices2, aes(x = GarageArea, y = avg_SalePrice2)) +
+  geom_bar(stat = "identity",fill = "lightpink") +
+  labs(title = "The changing of Saleprice rely on the Garage's size",
+       x = "The size of Garage",
+       y = "Average Sale Price") + 
+    theme_minimal() + scale_x_continuous(labels = scales::comma)
+```
+
+**MODEL BUILDING**
+
+REGRESSION MODEL
+
+```{r}
+#Apply regression model to find the correlation between SalePrice and all features
+Reg_data1 <- lm(SalePrice ~., data = Train_Data)
+t(t(names(Train_Data)))
+Reg_data1$coefficients
+summary(Reg_data1)
+```
+
+```{r}
+anova(Reg_data1)
+```
+```{r}
+#Plot the graph to see the distribution of Q Line 
+qqnorm(Reg_data1$residuals,col="red")
+qqline(Reg_data1$residuals)
+```
+
+```{r}
+Test_data <- read.csv("C:/Users/jeeva thangamani/Desktop/Rhistory/BA-Predict.csv")
+predict_data <- predict(Reg_data1,newdata=Test_data)
+print(predict_data)
+```
+
+```{r}
+r_squared_adjust <- summary(Reg_data1)$adj.r.squared
+r_squared_adjust
+
+rmse <- sqrt(mean((Test_data$SalePrice - predict_data)^2))
+rmse
+
+mae <- mean(abs(Test_data$SalePrice - predict_data))
+mae
+```
+
+DECISION TREE
+
+```{r}
+#install.packages("rpart.plot")
+#install.packages("rattle")
+library(rpart)
+library(rpart.plot)
+library(rattle)
+```
+
+```{r}
+#Apply the "rpart" function and "anova" method to 
+Decision_tree_model=rpart (SalePrice~.,data=Train_Data, method='anova',
+                           control=rpart.control(minsplit = 60)) 
+summary(Decision_tree_model)
+```
+
+```{r}
+fancyRpartPlot(Decision_tree_model)
+```
+
+```{r}
+Decision_tree_prediction = predict(Decision_tree_model, newdata = Test_data)
+
+Decision_tree_table = data.frame(Actual_Price = Test_data$SalePrice, Predicted_Price = Decision_tree_prediction)
+head(Decision_tree_table)
+```
+
+```{r}
+Decision_tree_rmse <- sqrt(mean((Test_data$SalePrice - Decision_tree_prediction)^2))
+Decision_tree_rmse
+```
+```{r}
+Decision_tree_mae <- mean(abs(Test_data$SalePrice - Decision_tree_prediction))
+Decision_tree_mae
+```
+CLASSIFICATION
+
+
+```{r}
+# Create a binary variable for OverallQual (rating 7 and above is considered as class 1, otherwise class zero)
+Train_Data$OverallQual_Class <- ifelse(Train_Data$OverallQual >= 7, 1, 0)
+
+# Check the distribution of the new binary variable
+table(Train_Data$OverallQual_Class)
+
+```
+
+
+
+```{r}
+```
+
+
+```{r}
+Train_Data$OverallQual <- as.factor(ifelse(Train_Data$OverallQual >= 7, '1', '0'))
+levels(Train_Data$OverallQual)
+Test_data$OverallQual <- as.factor(ifelse(Test_data$OverallQual >= 7, '1', '0'))
+levels(Test_data$OverallQual)
+```
+```{r}
+levels(Train_Data$OverallQual)
+unique(Train_Data$OverallQual)
+Train_Data$OverallQual <- as.factor(Train_Data$OverallQual)
+
+
+```
+
+
+```{r}
+Model_5 <- glm(OverallQual ~ ., data = Train_Data, family = 'binomial', control = glm.control(maxit = 100))
+# Assuming only numeric predictors need scaling
+numeric_vars <- sapply(Train_Data, is.numeric)
+Train_Data[, numeric_vars] <- scale(Train_Data[, numeric_vars])
+library(MatrixModels)
+
+```
+
+
+
+```{r}
+Model_6 <- glm(OverallQual ~ LotArea + BsmtFinSF1 + BedroomAbvGr + SalePrice, data = Test_data, family = 'binomial')
+summary(Model_6)
+Predicted_probs <- predict(Model_6, newdata = Test_data, type = "response")
+cutoff <- 0.5
+class_prediction <- ifelse(Predicted_probs > cutoff, "1", "0")
+class_prediction <- as.factor(class_prediction)
+Test_data$OverallQual <- as.factor(Test_data$OverallQual)
+conf_matrix <- confusionMatrix(class_prediction, Test_data$OverallQual, positive = "1")
+print(conf_matrix)
+```
